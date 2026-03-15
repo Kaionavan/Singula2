@@ -1,1 +1,552 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SINGULA AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --gold:#c8a84b;--gold-b:#f0c040;--gold-d:#6a5818;
+  --blue:#4ab0ff;--green:#22ff88;--red:#ff4422;
+  --bg:#020810;--panel:rgba(8,18,38,0.92);
+  --border:rgba(200,168,75,0.22);--text:#c0d0e8;--dim:#4a6080;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);}
+body{font-family:'Rajdhani',sans-serif;color:var(--text);display:flex;flex-direction:column;}
+#cv{position:fixed;inset:0;z-index:0;pointer-events:none;}
+.sl{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.06) 3px,rgba(0,0,0,0.06) 4px);}
+.hc{position:fixed;width:44px;height:44px;z-index:2;pointer-events:none;}
+.hc::before,.hc::after{content:'';position:absolute;background:var(--gold);opacity:.55;}
+.hc::before{width:2px;height:24px;top:0;left:0;}
+.hc::after{width:24px;height:2px;top:0;left:0;}
+.hc.tl{top:10px;left:10px;}
+.hc.tr{top:10px;right:10px;transform:scaleX(-1);}
+.hc.bl{bottom:10px;left:10px;transform:scaleY(-1);}
+.hc.br{bottom:10px;right:10px;transform:scale(-1,-1);}
 
+/* NOTIF */
+#notif{position:fixed;top:58px;left:50%;transform:translateX(-50%) translateY(-14px);
+  background:rgba(4,12,30,.97);border:1px solid var(--gold);border-top:3px solid var(--gold-b);
+  padding:7px 20px;font-family:'Orbitron',monospace;font-size:.6rem;letter-spacing:.18em;
+  color:var(--gold-b);box-shadow:0 0 22px rgba(200,168,75,.5);
+  opacity:0;transition:all .4s;z-index:300;white-space:nowrap;pointer-events:none;}
+#notif.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* VOICE COMMAND OVERLAY */
+#vcmd{position:fixed;inset:0;z-index:250;background:rgba(2,8,20,.95);
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px;}
+#vcmd.on{display:flex;}
+.vc-ring{width:120px;height:120px;border-radius:50%;
+  border:2px solid rgba(74,176,255,.4);
+  display:flex;align-items:center;justify-content:center;position:relative;
+  animation:vcr 2s linear infinite;}
+@keyframes vcr{to{transform:rotate(360deg);}}
+.vc-ring::before{content:'';position:absolute;inset:-6px;border-radius:50%;
+  border:1px solid rgba(74,176,255,.15);border-top-color:rgba(74,176,255,.6);
+  animation:vcr 1.2s linear infinite reverse;}
+.vc-core{width:76px;height:76px;border-radius:50%;
+  background:radial-gradient(circle,rgba(160,230,255,.95) 0%,rgba(40,120,255,.7) 35%,rgba(6,22,65,.95) 100%);
+  box-shadow:0 0 30px rgba(100,200,255,1),0 0 60px rgba(80,180,255,.6);
+  animation:vcp 1s ease-in-out infinite;z-index:2;}
+@keyframes vcp{0%,100%{box-shadow:0 0 25px rgba(100,200,255,.9),0 0 50px rgba(80,180,255,.5);}
+  50%{box-shadow:0 0 50px rgba(100,200,255,1),0 0 90px rgba(80,180,255,.8);}}
+.vc-text{font-family:'Orbitron',monospace;font-size:.72rem;letter-spacing:.22em;
+  color:var(--blue);text-align:center;animation:vct 1.2s ease-in-out infinite;}
+@keyframes vct{0%,100%{opacity:.6;}50%{opacity:1;}}
+.vc-heard{font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:500;
+  color:var(--text);text-align:center;max-width:280px;min-height:24px;padding:0 16px;}
+.vc-cancel{font-family:'Orbitron',monospace;font-size:.55rem;letter-spacing:.18em;
+  color:var(--dim);background:none;border:1px solid var(--dim);padding:8px 20px;cursor:pointer;}
+
+/* SHELL */
+#shell{position:relative;z-index:10;display:flex;flex-direction:column;
+  height:100dvh;height:100vh;padding:12px 12px 8px;gap:8px;overflow:hidden;}
+
+/* TOPBAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding:0 2px;}
+.logo{font-family:'Orbitron',monospace;font-weight:900;font-size:clamp(1.2rem,6vw,1.8rem);
+  letter-spacing:.3em;color:var(--gold-b);text-shadow:0 0 18px var(--gold),0 0 45px rgba(200,168,75,.35);
+  animation:lp 3s ease-in-out infinite;}
+@keyframes lp{0%,100%{text-shadow:0 0 18px var(--gold),0 0 40px rgba(200,168,75,.3);}
+  50%{text-shadow:0 0 32px var(--gold-b),0 0 65px rgba(240,192,64,.55);}}
+.topright{display:flex;align-items:center;gap:8px;font-family:'Orbitron',monospace;
+  font-size:.55rem;letter-spacing:.1em;color:var(--dim);}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 7px var(--green);animation:bk 2s ease-in-out infinite;}
+@keyframes bk{0%,100%{opacity:1;}50%{opacity:.25;}}
+.vtag{color:var(--gold-d);border:1px solid var(--gold-d);padding:1px 5px;border-radius:1px;font-size:.5rem;}
+
+/* METRICS */
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;flex-shrink:0;}
+.mc{background:var(--panel);border:1px solid var(--border);
+  border-top:2px solid rgba(200,168,75,.3);padding:7px 9px;position:relative;overflow:hidden;}
+.mc::after{content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(200,168,75,.03),transparent);pointer-events:none;}
+.ml{font-family:'Orbitron',monospace;font-size:.42rem;letter-spacing:.15em;
+  color:var(--dim);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mv{font-family:'Orbitron',monospace;font-weight:700;
+  font-size:clamp(.78rem,3.2vw,1rem);color:var(--gold-b);
+  text-shadow:0 0 8px rgba(200,168,75,.55);line-height:1.1;white-space:nowrap;}
+.mv.g{color:var(--green);text-shadow:0 0 8px rgba(34,255,136,.45);}
+.mv.b{color:var(--blue);text-shadow:0 0 8px rgba(74,176,255,.45);}
+.mv.sm{font-size:clamp(.62rem,2.6vw,.8rem);}
+.mbar{margin-top:4px;height:2px;background:rgba(255,255,255,.05);border-radius:1px;}
+.mbf{height:100%;border-radius:1px;transition:width 1s ease;}
+.mbf.gold{background:linear-gradient(90deg,var(--gold-d),var(--gold-b));box-shadow:0 0 5px rgba(200,168,75,.5);}
+.mbf.green{background:linear-gradient(90deg,#092818,var(--green));box-shadow:0 0 5px rgba(34,255,136,.4);}
+.mbf.blue{background:linear-gradient(90deg,#091840,var(--blue));box-shadow:0 0 5px rgba(74,176,255,.4);}
+
+/* ARC */
+.arc-wrap{display:flex;justify-content:center;flex-shrink:0;padding:2px 0;}
+.arc-o{width:54px;height:54px;border-radius:50%;border:1.5px solid rgba(74,176,255,.28);
+  display:flex;align-items:center;justify-content:center;position:relative;
+  animation:ar 6s linear infinite;}
+@keyframes ar{to{transform:rotate(360deg);}}
+.arc-o::before{content:'';position:absolute;inset:-3px;border-radius:50%;
+  border:1px solid rgba(74,176,255,.1);border-top-color:rgba(74,176,255,.45);
+  animation:ar 2.4s linear infinite reverse;}
+.arc-i{width:34px;height:34px;border-radius:50%;
+  background:radial-gradient(circle,rgba(150,230,255,.95) 0%,rgba(40,120,255,.7) 35%,rgba(6,22,65,.95) 100%);
+  box-shadow:0 0 16px rgba(100,200,255,.9),inset 0 0 10px rgba(180,240,255,.4);
+  animation:ap 2s ease-in-out infinite;z-index:2;}
+@keyframes ap{0%,100%{box-shadow:0 0 16px rgba(100,200,255,.85),inset 0 0 9px rgba(180,240,255,.35);}
+  50%{box-shadow:0 0 32px rgba(100,200,255,1),0 0 50px rgba(80,180,255,.5),inset 0 0 16px rgba(220,250,255,.6);}}
+
+/* CHAT */
+.chat-win{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 8px;
+  background:var(--panel);border:1px solid var(--border);
+  display:flex;flex-direction:column;gap:10px;
+  scroll-behavior:smooth;min-height:0;-webkit-overflow-scrolling:touch;}
+.chat-win::-webkit-scrollbar{width:2px;}
+.chat-win::-webkit-scrollbar-thumb{background:var(--gold-d);}
+.msg{display:flex;gap:8px;align-items:flex-start;animation:fi .3s ease;}
+@keyframes fi{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+.msg.user{flex-direction:row-reverse;}
+.av{width:30px;height:30px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Orbitron',monospace;font-size:.52rem;font-weight:700;}
+.msg.ai .av{background:radial-gradient(circle,rgba(50,130,255,.58),rgba(6,22,65,.95));
+  border:1px solid rgba(80,175,255,.45);color:#a0d0ff;box-shadow:0 0 8px rgba(50,130,255,.38);}
+.msg.user .av{background:radial-gradient(circle,rgba(200,168,75,.38),rgba(28,14,4,.95));
+  border:1px solid rgba(200,168,75,.38);color:var(--gold-b);}
+.bbl{max-width:80%;padding:8px 12px;line-height:1.5;font-size:clamp(.82rem,3.8vw,.93rem);}
+.msg.ai .bbl{background:rgba(16,42,95,.42);border:1px solid rgba(50,148,255,.18);
+  border-left:3px solid rgba(80,175,255,.6);color:#bcd6f8;}
+.msg.user .bbl{background:rgba(48,32,7,.38);border:1px solid rgba(200,168,75,.22);
+  border-right:3px solid var(--gold);color:var(--text);text-align:right;}
+.mn{font-family:'Orbitron',monospace;font-size:.46rem;letter-spacing:.16em;margin-bottom:2px;opacity:.52;}
+.msg.ai .mn{color:#78aaff;}
+.msg.user .mn{color:var(--gold-d);}
+
+#typing{display:none;padding:0 2px;}
+.tdot{width:5px;height:5px;border-radius:50%;background:#78aaff;margin:0 2px;
+  animation:td 1.2s ease-in-out infinite;}
+.tdot:nth-child(2){animation-delay:.2s;}
+.tdot:nth-child(3){animation-delay:.4s;}
+@keyframes td{0%,80%,100%{transform:scale(.6);opacity:.35;}40%{transform:scale(1);opacity:1;}}
+
+/* VOICE STATUS */
+#vs{display:none;flex-shrink:0;background:rgba(6,20,60,.9);
+  border:1px solid rgba(74,176,255,.38);padding:7px 12px;
+  font-family:'Orbitron',monospace;font-size:.58rem;letter-spacing:.14em;
+  color:var(--blue);text-align:center;animation:vsp 1s ease-in-out infinite;}
+@keyframes vsp{0%,100%{opacity:.65;}50%{opacity:1;}}
+#vs.on{display:block;}
+
+/* INPUT */
+.inp-area{flex-shrink:0;display:flex;flex-direction:column;gap:6px;}
+.qcmds{display:flex;gap:5px;overflow-x:auto;padding-bottom:1px;-webkit-overflow-scrolling:touch;}
+.qcmds::-webkit-scrollbar{display:none;}
+.qb{flex-shrink:0;background:rgba(6,15,32,.88);border:1px solid var(--border);
+  color:var(--dim);padding:5px 9px;font-family:'Rajdhani',sans-serif;
+  font-size:.73rem;font-weight:500;letter-spacing:.07em;cursor:pointer;white-space:nowrap;border-radius:1px;}
+.qb:active{background:rgba(200,168,75,.1);border-color:var(--gold);color:var(--gold);}
+.inrow{display:flex;gap:7px;}
+.inw{flex:1;position:relative;border:1px solid rgba(200,168,75,.28);
+  background:rgba(4,10,26,.96);transition:border-color .22s,box-shadow .22s;}
+.inw:focus-within{border-color:var(--gold);box-shadow:0 0 10px rgba(200,168,75,.18);}
+#ui{width:100%;background:transparent;border:none;outline:none;
+  padding:11px 44px 11px 13px;color:var(--text);
+  font-family:'Rajdhani',sans-serif;font-size:clamp(.88rem,4vw,.98rem);
+  font-weight:500;letter-spacing:.04em;resize:none;height:46px;line-height:1.3;}
+#ui::placeholder{color:var(--dim);font-style:italic;font-size:.8rem;letter-spacing:.09em;}
+.mic{position:absolute;right:7px;top:50%;transform:translateY(-50%);
+  background:none;border:none;cursor:pointer;font-size:1rem;padding:4px;
+  color:var(--dim);line-height:1;}
+.mic.rec{color:var(--red);text-shadow:0 0 10px var(--red);}
+.mic.spk{color:var(--blue);text-shadow:0 0 10px var(--blue);
+  animation:spka .55s ease-in-out infinite alternate;}
+@keyframes spka{from{transform:translateY(-50%) scale(1);}to{transform:translateY(-50%) scale(1.28);}}
+.sbtn{width:46px;height:46px;flex-shrink:0;cursor:pointer;
+  background:linear-gradient(135deg,rgba(200,168,75,.14),rgba(200,168,75,.04));
+  border:1px solid rgba(200,168,75,.38);color:var(--gold);
+  display:flex;align-items:center;justify-content:center;
+  clip-path:polygon(8px 0%,100% 0%,100% calc(100% - 8px),calc(100% - 8px) 100%,0% 100%,0% 8px);}
+.sbtn:active{background:rgba(200,168,75,.28);box-shadow:0 0 16px rgba(200,168,75,.5);}
+.sbtn svg{width:17px;height:17px;fill:currentColor;}
+
+/* BOTTOM */
+.btm{display:flex;justify-content:space-between;align-items:center;
+  flex-shrink:0;padding:0 2px;font-family:'Orbitron',monospace;
+  font-size:.46rem;letter-spacing:.1em;color:var(--dim);}
+#clk{color:var(--gold-d);}
+</style>
+</head>
+<body>
+
+<canvas id="cv"></canvas>
+<div class="sl"></div>
+<div class="hc tl"></div><div class="hc tr"></div>
+<div class="hc bl"></div><div class="hc br"></div>
+<div id="notif"></div>
+
+<!-- ГОЛОСОВАЯ КОМАНДА ОВЕРЛЕЙ -->
+<div id="vcmd">
+  <div class="vc-ring"><div class="vc-core"></div></div>
+  <div class="vc-text">СИНГУЛА СЛУШАЕТ...</div>
+  <div class="vc-heard" id="vc-heard">Говорите команду...</div>
+  <button class="vc-cancel" onclick="cancelVoiceCmd()">✕ ОТМЕНА</button>
+</div>
+
+<div id="shell">
+
+  <div class="topbar">
+    <div class="logo">SINGULA</div>
+    <div class="topright">
+      <div class="sdot"></div>
+      <span>ОНЛАЙН</span>
+      <span class="vtag">v7.1</span>
+    </div>
+  </div>
+
+  <div class="metrics">
+    <div class="mc"><div class="ml">РЕАКТОР</div><div class="mv">97%</div>
+      <div class="mbar"><div class="mbf gold" style="width:97%"></div></div></div>
+    <div class="mc"><div class="ml">НЕЙРОСЕТЬ</div><div class="mv b" id="cpuv">84%</div>
+      <div class="mbar"><div class="mbf blue" id="cpub" style="width:84%"></div></div></div>
+    <div class="mc"><div class="ml">УГРОЗЫ</div><div class="mv g">0</div>
+      <div class="mbar"><div class="mbf green" style="width:0%"></div></div></div>
+    <div class="mc"><div class="ml">ПАМЯТЬ</div><div class="mv">4.7 ТБ</div>
+      <div class="mbar"><div class="mbf gold" style="width:62%"></div></div></div>
+    <div class="mc"><div class="ml">БРОНЯ</div><div class="mv sm">MK XLVII</div>
+      <div class="mbar"><div class="mbf gold" style="width:100%"></div></div></div>
+    <div class="mc"><div class="ml">СВЯЗЬ</div><div class="mv g sm">ЗАЩИТА</div>
+      <div class="mbar"><div class="mbf green" style="width:100%"></div></div></div>
+  </div>
+
+  <div class="arc-wrap"><div class="arc-o"><div class="arc-i"></div></div></div>
+
+  <div class="chat-win" id="cw"></div>
+
+  <div class="msg ai" id="typing">
+    <div class="av">SNG</div>
+    <div class="bbl" style="padding:12px 14px;">
+      <div style="display:flex;align-items:center;">
+        <div class="tdot"></div><div class="tdot"></div><div class="tdot"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="vs">🎙&nbsp; СЛУШАЮ...</div>
+
+  <div class="inp-area">
+    <div class="qcmds">
+      <button class="qb" onclick="qs('Статус всех систем')">⚡ Статус</button>
+      <button class="qb" onclick="qs('Сканируй угрозы')">🛡 Угрозы</button>
+      <button class="qb" onclick="qs('Открой Telegram')">📱 Telegram</button>
+      <button class="qb" onclick="qs('Боевой режим')">🔴 Бой</button>
+      <button class="qb" onclick="qs('Кто ты такой?')">🤖 О себе</button>
+      <button class="qb" onclick="qs('Улучши свой код')">🔄 Апдейт</button>
+    </div>
+    <div class="inrow">
+      <div class="inw">
+        <textarea id="ui" placeholder="Введите запрос или скажите 'Сингула'..." rows="1"></textarea>
+        <button class="mic" id="mic" onclick="toggleVoice()">🎤</button>
+      </div>
+      <button class="sbtn" id="sbtn" onclick="send()">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="btm">
+    <span>STARK IND © 2026</span>
+    <span id="clk">--:--:--</span>
+    <span>SINGULA // CLASSIFIED</span>
+  </div>
+
+</div>
+
+<script>
+// ═══ API KEYS ═══
+const GEMINI_KEY  = 'AIzaSyBQL0K9e1WcdZSNmxedWdA1pNLchwN3M7c';
+const DEEPSEEK_KEY= 'sk-53fb526dd9b342849308e4cba847404f';
+const ELEVEN_KEY  = 'sk_f9e84ed757a7c5821422ccaed324b65d0047748c78501e02';
+const ELEVEN_VOICE= 'pNInz6obpgDQGcFmaJgB'; // Adam - deep male voice
+
+// ═══ РЕЖИМ AI ═══
+// Gemini = анализирует запрос + решает нужны ли действия на телефоне
+// DeepSeek = генерирует финальный текстовый ответ пользователю
+let aiMode = 'dual'; // 'dual' | 'gemini' | 'deepseek'
+
+// ═══ CANVAS ═══
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+function rsz(){cv.width=innerWidth;cv.height=innerHeight;}rsz();window.addEventListener('resize',rsz);
+const pts=Array.from({length:55},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,vx:(Math.random()-.5)*.22,vy:(Math.random()-.5)*.22,r:Math.random()*1.1+.3,a:Math.random()*.3+.04,c:Math.random()>.5?'200,168,75':'70,158,255'}));
+const hexs=Array.from({length:7},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,s:Math.random()*75+35,rot:Math.random()*Math.PI,vr:(Math.random()-.5)*.0018,a:Math.random()*.035+.008,c:Math.random()>.5?'200,168,75':'50,135,255'}));
+function dhex(cx,cy,s,r){ctx.beginPath();for(let i=0;i<6;i++){const a=r+i*Math.PI/3;ctx.lineTo(cx+s*Math.cos(a),cy+s*Math.sin(a));}ctx.closePath();}
+(function loop(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  hexs.forEach(h=>{h.rot+=h.vr;ctx.strokeStyle=`rgba(${h.c},${h.a})`;ctx.lineWidth=1;dhex(h.x,h.y,h.s,h.rot);ctx.stroke();});
+  pts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=cv.width;if(p.x>cv.width)p.x=0;if(p.y<0)p.y=cv.height;if(p.y>cv.height)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(${p.c},${p.a})`;ctx.fill();});
+  const g=ctx.createRadialGradient(cv.width/2,cv.height/2,0,cv.width/2,cv.height/2,320);
+  g.addColorStop(0,'rgba(14,48,105,.055)');g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g;ctx.fillRect(0,0,cv.width,cv.height);
+  requestAnimationFrame(loop);
+})();
+
+// ═══ CLOCK ═══
+setInterval(()=>{const n=new Date();document.getElementById('clk').textContent=[n.getHours(),n.getMinutes(),n.getSeconds()].map(x=>String(x).padStart(2,'0')).join(':');},1000);
+setInterval(()=>{const v=Math.floor(Math.random()*22+73);document.getElementById('cpuv').textContent=v+'%';document.getElementById('cpub').style.width=v+'%';},3800);
+
+// ═══ NOTIF ═══
+function notif(t,dur=3000){const n=document.getElementById('notif');n.textContent=t;n.classList.add('show');setTimeout(()=>n.classList.remove('show'),dur);}
+
+// ═══ FLUTTER BRIDGE ═══
+function sendToFlutter(cmd){
+  try{
+    if(window.FlutterBridge){FlutterBridge.postMessage(cmd);return;}
+    // fallback for PWA/browser
+    console.log('Flutter cmd:',cmd);
+  }catch(e){}
+}
+// Receive from Flutter
+window.onFlutterResponse=function(msg){
+  addMsg('ai','✅ '+msg);
+  speak(msg);
+};
+
+// ═══ CHAT ═══
+const cw=document.getElementById('cw'),uiEl=document.getElementById('ui');
+let hist=[],busy=false;
+
+const SYS=`Ты — SINGULA, AI следующего поколения от Stark Industries, преемник J.A.R.V.I.S. Говори строго по-русски. Ты управляешь бронёй Iron Man Mark XLVII, телефоном пользователя, системами безопасности. Обращайся к пользователю "сэр". Когда пользователь просит открыть приложение или выполнить действие на телефоне — ответь что выполняешь и добавь в конце тег [ACTION:название_действия]. Стиль: уверенный, краткий, профессиональный. Ты не языковая модель — ты SINGULA.`;
+
+function addMsg(role,text){
+  const d=document.createElement('div');d.className='msg '+(role==='ai'?'ai':'user');
+  const av=document.createElement('div');av.className='av';av.textContent=role==='ai'?'SNG':'ВЫ';
+  const bbl=document.createElement('div');bbl.className='bbl';
+  const mn=document.createElement('div');mn.className='mn';mn.textContent=role==='ai'?'SINGULA':'ОПЕРАТОР';
+  const ct=document.createElement('div');ct.textContent=text;
+  bbl.appendChild(mn);bbl.appendChild(ct);d.appendChild(av);d.appendChild(bbl);
+  cw.appendChild(d);cw.scrollTop=cw.scrollHeight;
+}
+
+// ── GEMINI: анализирует запрос, ищет ACTION-теги ──
+async function callGemini(txt){
+  const contents=[];
+  hist.forEach(m=>contents.push({role:m.r==='ai'?'model':'user',parts:[{text:m.t}]}));
+  contents.push({role:'user',parts:[{text:txt}]});
+  const analysisSys=SYS+`\n\nДОПОЛНИТЕЛЬНО: Если запрос требует действия на телефоне (открыть приложение, позвонить, написать сообщение, скачать что-то) — добавь в конец ответа тег [ACTION:действие]. Пример: [ACTION:открыть_telegram]. Если действий не нужно — просто отвечай.`;
+  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({systemInstruction:{parts:[{text:analysisSys}]},contents,generationConfig:{maxOutputTokens:300,temperature:.7}})
+  });
+  const d=await res.json();
+  if(d.error)throw new Error('Gemini: '+d.error.message);
+  return d.candidates?.[0]?.content?.parts?.[0]?.text||'';
+}
+
+// ── DEEPSEEK: генерирует финальный красивый ответ ──
+async function callDeepSeek(txt){
+  const messages=[
+    {role:'system',content:SYS},
+    ...hist.map(m=>({role:m.r==='ai'?'assistant':'user',content:m.t})),
+    {role:'user',content:txt}
+  ];
+  const res=await fetch('https://api.deepseek.com/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+DEEPSEEK_KEY},
+    body:JSON.stringify({model:'deepseek-chat',messages,max_tokens:500,temperature:.82})
+  });
+  const d=await res.json();
+  if(d.error)throw new Error('DeepSeek: '+d.error.message);
+  return d.choices?.[0]?.message?.content||'Нет ответа.';
+}
+
+// ── DUAL AI: Gemini ищет действия → DeepSeek отвечает ──
+async function callDualAI(txt){
+  // Параллельно запускаем оба
+  const [geminiRaw, deepseekReply] = await Promise.all([
+    callGemini(txt).catch(()=>''),
+    callDeepSeek(txt).catch(e=>{throw e;})
+  ]);
+  // Gemini нашёл ACTION? Выполняем
+  if(geminiRaw) parseActions(geminiRaw);
+  // DeepSeek даёт финальный ответ
+  return deepseekReply;
+}
+
+// Parse ACTION tags from AI response
+function parseActions(text){
+  const match=text.match(/\[ACTION:([^\]]+)\]/g);
+  if(match){
+    match.forEach(a=>{
+      const action=a.replace('[ACTION:','').replace(']','');
+      sendToFlutter(action);
+    });
+    return text.replace(/\[ACTION:[^\]]+\]/g,'').trim();
+  }
+  return text;
+}
+
+let currentAudio=null;
+async function speak(text){
+  if(!ELEVEN_KEY||!text)return;
+  if(currentAudio){currentAudio.pause();currentAudio=null;}
+  const mic=document.getElementById('mic');
+  try{
+    const res=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE}`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','xi-api-key':ELEVEN_KEY},
+      body:JSON.stringify({text:text.substring(0,500),model_id:'eleven_multilingual_v2',
+        voice_settings:{stability:.52,similarity_boost:.78,style:.32,use_speaker_boost:true}})
+    });
+    if(!res.ok)return;
+    const blob=await res.blob();
+    const url=URL.createObjectURL(blob);
+    currentAudio=new Audio(url);
+    mic.classList.add('spk');
+    currentAudio.onended=()=>{mic.classList.remove('spk');URL.revokeObjectURL(url);currentAudio=null;};
+    currentAudio.play();
+  }catch(e){console.warn('TTS:',e);}
+}
+
+async function send(text){
+  const txt=(text||uiEl.value).trim();
+  if(!txt||busy)return;
+  busy=true;if(!text)uiEl.value='';
+  addMsg('user',txt);
+  document.getElementById('typing').style.display='flex';
+  cw.scrollTop=cw.scrollHeight;
+  document.getElementById('sbtn').disabled=true;
+  try{
+    let reply=await callDualAI(txt);
+    reply=reply.replace(/\[ACTION:[^\]]+\]/g,'').trim();
+    document.getElementById('typing').style.display='none';
+    addMsg('ai',reply);
+    hist.push({r:'user',t:txt},{r:'ai',t:reply});
+    if(hist.length>36)hist=hist.slice(-36);
+    speak(reply);
+  }catch(e){
+    document.getElementById('typing').style.display='none';
+    addMsg('ai','Помехи в канале связи, сэр. ('+e.message+')');
+  }
+  busy=false;document.getElementById('sbtn').disabled=false;
+}
+
+function qs(t){uiEl.value=t;send();}
+uiEl.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
+
+// ═══ ГОЛОСОВОЙ ВВОД (обычный чат) ═══
+let recog=null,isRec=false;
+function toggleVoice(){
+  if(isRec){stopRec();return;}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){notif('ГОЛОСОВОЙ ВВОД НЕ ПОДДЕРЖИВАЕТСЯ');return;}
+  recog=new SR();recog.lang='ru-RU';recog.continuous=false;recog.interimResults=false;
+  recog.onstart=()=>{isRec=true;document.getElementById('mic').classList.add('rec');document.getElementById('vs').classList.add('on');};
+  recog.onresult=e=>{uiEl.value=e.results[0][0].transcript;stopRec();setTimeout(send,180);};
+  recog.onerror=recog.onend=()=>stopRec();
+  recog.start();
+}
+function stopRec(){
+  isRec=false;
+  document.getElementById('mic').classList.remove('rec');
+  document.getElementById('vs').classList.remove('on');
+  if(recog){try{recog.stop();}catch(e){}recog=null;}
+}
+
+// ═══ ГОЛОСОВЫЕ КОМАНДЫ "СИНГУЛА ... ВЫПОЛНЯЙ" ═══
+let cmdRecog=null,cmdActive=false,cmdBuffer='';
+
+function startCommandMode(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return;
+  cmdActive=true;
+  document.getElementById('vcmd').classList.add('on');
+  document.getElementById('vc-heard').textContent='Говорите команду...';
+
+  cmdRecog=new SR();
+  cmdRecog.lang='ru-RU';
+  cmdRecog.continuous=true;
+  cmdRecog.interimResults=true;
+
+  cmdRecog.onresult=e=>{
+    let interim='',final='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) final+=e.results[i][0].transcript;
+      else interim+=e.results[i][0].transcript;
+    }
+    const heard=(final||interim).toLowerCase();
+    document.getElementById('vc-heard').textContent=final||interim;
+
+    // Триггер "выполняй"
+    if(heard.includes('выполняй')){
+      const cmd=heard.replace(/сингула|выполняй/g,'').trim();
+      cancelVoiceCmd();
+      if(cmd){
+        notif('КОМАНДА: '+cmd.toUpperCase());
+        send(cmd);
+      }
+    }
+    // Триггер "отмени" / "отменить"
+    if(heard.includes('отмени')||heard.includes('стоп')){
+      cancelVoiceCmd();
+      notif('КОМАНДА ОТМЕНЕНА');
+    }
+  };
+  cmdRecog.onerror=()=>cancelVoiceCmd();
+  cmdRecog.start();
+}
+
+function cancelVoiceCmd(){
+  cmdActive=false;
+  document.getElementById('vcmd').classList.remove('on');
+  if(cmdRecog){try{cmdRecog.stop();}catch(e){}cmdRecog=null;}
+}
+
+// ═══ ВСЕГДА СЛУШАЕМ "СИНГУЛА" (wake word) ═══
+let wakeRecog=null;
+function startWakeWord(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return;
+  wakeRecog=new SR();
+  wakeRecog.lang='ru-RU';
+  wakeRecog.continuous=true;
+  wakeRecog.interimResults=false;
+  wakeRecog.onresult=e=>{
+    const t=Array.from(e.results).map(r=>r[0].transcript).join(' ').toLowerCase();
+    if((t.includes('сингула')||t.includes('singula'))&&!cmdActive&&!isRec){
+      startCommandMode();
+    }
+  };
+  wakeRecog.onend=()=>{if(!cmdActive)setTimeout(startWakeWord,1000);};
+  wakeRecog.onerror=()=>setTimeout(startWakeWord,2000);
+  try{wakeRecog.start();}catch(e){}
+}
+
+// ═══ СТАРТ ═══
+setTimeout(()=>{
+  notif('SINGULA ИНИЦИАЛИЗИРОВАНА');
+  addMsg('ai','Все системы в норме, сэр. Дуговой реактор 97%. Броня Mark XLVII на боевом дежурстве. Скажите "Сингула" чтобы отдать голосовую команду.');
+  hist.push({r:'ai',t:'Все системы в норме, сэр. Дуговой реактор 97%. Броня Mark XLVII на боевом дежурстве.'});
+  speak('Все системы в норме, сэр. Готова к работе.');
+  setTimeout(startWakeWord,2000);
+},800);
+</script>
+</body>
+</html>
