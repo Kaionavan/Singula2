@@ -261,13 +261,16 @@ body{font-family:'Rajdhani',sans-serif;color:var(--text);display:flex;flex-direc
   <div class="ks-sub">STARK INDUSTRIES // АВТОРИЗАЦИЯ</div>
 
   <div class="ks-row">
+    <div class="ks-lbl">GEMINI API KEY — бесплатно на aistudio.google.com</div>
+    <input class="ks-inp" id="k-grok" type="password" placeholder="AIza...">
+  </div>
+  <div class="ks-row">
     <div class="ks-lbl">ELEVENLABS API KEY (ГОЛОС — необязательно)</div>
     <input class="ks-inp" id="k-el" type="password" placeholder="sk_... (если хочешь голос)">
   </div>
 
-  <div class="ks-note">AI работает без ключей! ElevenLabs только для голоса SINGULA.</div>
+  <div class="ks-note">Gemini бесплатный — создай ключ на aistudio.google.com за 1 минуту. Ключи хранятся только на твоём устройстве.</div>
   <button class="ks-btn" onclick="saveKeys()">▶ ЗАПУСТИТЬ SINGULA</button>
-  <button onclick="saveKeys()" style="background:none;border:none;color:var(--dim);font-family:'Orbitron',monospace;font-size:.52rem;letter-spacing:.15em;cursor:pointer;padding:8px;">Запустить без голоса →</button>
 </div>
 
 <!-- ГОЛОСОВАЯ КОМАНДА ОВЕРЛЕЙ -->
@@ -419,25 +422,35 @@ function addMsg(role,text){
   cw.appendChild(d);cw.scrollTop=cw.scrollHeight;
 }
 
-// ── CLAUDE: основной AI (встроенный, без ключа) ──
+// ── GEMINI: основной AI ──
 async function callGrok(txt){
-  const messages=[
-    ...hist.map(m=>({role:m.r==='ai'?'assistant':'user',content:m.t})),
-    {role:'user',content:txt}
-  ];
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      model:'claude-sonnet-4-20250514',
-      max_tokens:1000,
-      system:SYS,
-      messages
-    })
-  });
+  const key=GROK_KEY_VAL||localStorage.getItem('sng_grok')||'';
+  if(!key){
+    // Нет ключа — просим ввести
+    document.getElementById('keysetup').classList.remove('hidden');
+    throw new Error('Введи Gemini ключ!');
+  }
+  const contents=[];
+  hist.forEach(m=>contents.push({
+    role:m.r==='ai'?'model':'user',
+    parts:[{text:m.t}]
+  }));
+  contents.push({role:'user',parts:[{text:txt}]});
+  const res=await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+    {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        systemInstruction:{parts:[{text:SYS}]},
+        contents,
+        generationConfig:{maxOutputTokens:500,temperature:.82}
+      })
+    }
+  );
   const d=await res.json();
-  if(d.error)throw new Error('AI: '+d.error.message);
-  const reply=d.content?.[0]?.text||'Нет ответа.';
+  if(d.error)throw new Error('Gemini: '+d.error.message);
+  const reply=d.candidates?.[0]?.content?.parts?.[0]?.text||'Нет ответа.';
   parseActions(reply);
   return reply.replace(/\[ACTION:[^\]]+\]/g,'').trim();
 }
@@ -660,8 +673,12 @@ function startWakeWord(){
 let GROK_KEY_VAL='',ELEVEN_KEY_VAL='',DEEPSEEK_KEY_VAL='';
 
 function saveKeys(){
+  const g=document.getElementById('k-grok')?document.getElementById('k-grok').value.trim():'';
   const e=document.getElementById('k-el')?document.getElementById('k-el').value.trim():'';
+  if(!g){notif('ВВЕДИ GEMINI КЛЮЧ!');return;}
+  localStorage.setItem('sng_grok',g);
   if(e)localStorage.setItem('sng_eleven',e);
+  GROK_KEY_VAL=g;
   ELEVEN_KEY_VAL=e||localStorage.getItem('sng_eleven')||'';
   document.getElementById('keysetup').classList.add('hidden');
   document.getElementById('shell').style.display='flex';
@@ -683,13 +700,13 @@ function openKeys(){
   document.getElementById('keysetup').classList.remove('hidden');
 }
 
-// Автозагрузка — запускается сразу без ключей
+// Автозагрузка ключей при старте
 (function(){
+  const g=localStorage.getItem('sng_grok')||'';
   const e=localStorage.getItem('sng_eleven')||'';
+  GROK_KEY_VAL=g;
   ELEVEN_KEY_VAL=e;
-  // Показываем экран ключей только если никогда не запускали
-  const launched=localStorage.getItem('sng_launched');
-  if(launched){
+  if(g){
     document.getElementById('keysetup').classList.add('hidden');
     document.getElementById('shell').style.display='flex';
     setTimeout(()=>{
@@ -699,7 +716,6 @@ function openKeys(){
       setTimeout(startWakeWord,2000);
     },800);
   }
-  localStorage.setItem('sng_launched','1');
 })();
 </script>
 </body>
