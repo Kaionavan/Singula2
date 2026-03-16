@@ -426,11 +426,15 @@ function addMsg(role,text){
 async function callGrok(txt){
   const key=GROK_KEY_VAL||localStorage.getItem('sng_grok')||'';
   if(!key){
-    // Нет ключа — просим ввести
     document.getElementById('keysetup').classList.remove('hidden');
     throw new Error('Введи Gemini ключ!');
   }
   const contents=[];
+  // Системный промпт в первом сообщении
+  if(hist.length===0){
+    contents.push({role:'user',parts:[{text:SYS+'\n\nПонял, готов к работе.'}]});
+    contents.push({role:'model',parts:[{text:'Понял, сэр. Готов к работе.'}]});
+  }
   hist.forEach(m=>contents.push({
     role:m.r==='ai'?'model':'user',
     parts:[{text:m.t}]
@@ -442,7 +446,6 @@ async function callGrok(txt){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        systemInstruction:{parts:[{text:SYS}]},
         contents,
         generationConfig:{maxOutputTokens:500,temperature:.82}
       })
