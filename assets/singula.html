@@ -550,33 +550,66 @@ let bigRec=null,bigRecActive=false;
 function toggleBigVoice(){
   if(bigRecActive){stopBigVoice();return;}
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){notif('ГОЛОС НЕ ПОДДЕРЖИВАЕТСЯ БРАУЗЕРОМ');return;}
+  if(!SR){
+    // Fallback — открываем текстовое поле
+    uiEl.focus();
+    notif('ГОЛОС НЕДОСТУПЕН — ВВЕДИТЕ ТЕКСТ');
+    return;
+  }
   bigRec=new SR();
   bigRec.lang='ru-RU';
   bigRec.continuous=false;
   bigRec.interimResults=true;
+  bigRec.maxAlternatives=1;
+
   bigRec.onstart=()=>{
     bigRecActive=true;
     document.getElementById('vbig').classList.add('rec');
-    document.getElementById('vbig-txt').textContent='🔴 СЛУШАЮ... ГОВОРИТЕ';
+    document.getElementById('vbig-txt').textContent='🔴 СЛУШАЮ...';
   };
+
   bigRec.onresult=e=>{
-    let txt='';
-    for(let i=0;i<e.results.length;i++) txt=e.results[i][0].transcript;
-    document.getElementById('vbig-txt').textContent='💬 '+txt;
-    if(e.results[e.results.length-1].isFinal){
+    let final_txt='', interim_txt='';
+    for(let i=0;i<e.results.length;i++){
+      if(e.results[i].isFinal) final_txt+=e.results[i][0].transcript;
+      else interim_txt+=e.results[i][0].transcript;
+    }
+    const shown=final_txt||interim_txt;
+    document.getElementById('vbig-txt').textContent='💬 '+shown;
+    if(final_txt){
       stopBigVoice();
-      if(txt.trim()) send(txt.trim());
+      setTimeout(()=>send(final_txt.trim()),100);
     }
   };
-  bigRec.onerror=()=>stopBigVoice();
+
+  bigRec.onspeechend=()=>{
+    // Небольшая задержка перед остановкой
+    setTimeout(()=>{if(bigRec)try{bigRec.stop();}catch(e){}},300);
+  };
+
+  bigRec.onerror=(e)=>{
+    console.log('Voice error:',e.error);
+    stopBigVoice();
+    if(e.error==='not-allowed') notif('РАЗРЕШИТЕ ДОСТУП К МИКРОФОНУ');
+    else if(e.error==='no-speech') notif('НИЧЕГО НЕ УСЛЫШАЛ');
+  };
+
   bigRec.onend=()=>stopBigVoice();
-  bigRec.start();
+
+  try{
+    bigRec.start();
+  }catch(e){
+    stopBigVoice();
+  }
 }
+
 function stopBigVoice(){
   bigRecActive=false;
-  document.getElementById('vbig').classList.remove('rec');
-  document.getElementById('vbig-txt').textContent='🎤 НАЖМИ И ГОВОРИ';
+  const btn=document.getElementById('vbig');
+  if(btn){
+    btn.classList.remove('rec');
+    document.getElementById('vbig-txt').textContent='🎤 НАЖМИ И ГОВОРИ';
+  }
   if(bigRec){try{bigRec.stop();}catch(e){}bigRec=null;}
 }
 
