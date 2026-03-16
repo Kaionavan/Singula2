@@ -212,6 +212,39 @@ body{font-family:'Rajdhani',sans-serif;color:var(--text);display:flex;flex-direc
 .vbig-dot{width:9px;height:9px;border-radius:50%;background:currentColor;flex-shrink:0;}
 .vbig.rec .vbig-dot{animation:vbd .6s ease-in-out infinite;}
 @keyframes vbd{0%,100%{transform:scale(1);}50%{transform:scale(1.8);}}
+
+/* KEY SETUP MODAL */
+#keysetup{
+  position:fixed;inset:0;z-index:500;
+  background:rgba(2,8,16,.98);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:20px;gap:12px;overflow-y:auto;
+}
+#keysetup.hidden{display:none;}
+.ks-logo{font-family:'Orbitron',monospace;font-weight:900;
+  font-size:clamp(1.5rem,7vw,2rem);letter-spacing:.3em;
+  color:var(--gold-b);text-shadow:0 0 25px var(--gold);margin-bottom:4px;}
+.ks-sub{font-family:'Orbitron',monospace;font-size:.55rem;letter-spacing:.2em;
+  color:var(--dim);text-align:center;margin-bottom:8px;}
+.ks-row{width:100%;max-width:360px;display:flex;flex-direction:column;gap:4px;}
+.ks-lbl{font-family:'Orbitron',monospace;font-size:.52rem;letter-spacing:.15em;color:var(--gold-d);}
+.ks-inp{background:rgba(8,18,38,.95);border:1px solid var(--border);
+  padding:12px 14px;color:var(--text);font-family:'Rajdhani',sans-serif;
+  font-size:.9rem;outline:none;width:100%;transition:border-color .2s;
+  letter-spacing:.03em;}
+.ks-inp:focus{border-color:var(--gold);box-shadow:0 0 8px rgba(200,168,75,.2);}
+.ks-note{font-size:.68rem;color:var(--dim);text-align:center;
+  max-width:320px;line-height:1.5;}
+.ks-btn{background:linear-gradient(135deg,rgba(200,168,75,.2),rgba(200,168,75,.05));
+  border:1px solid var(--gold);color:var(--gold-b);padding:14px 40px;
+  font-family:'Orbitron',monospace;font-size:.68rem;letter-spacing:.2em;
+  cursor:pointer;transition:all .2s;margin-top:4px;width:100%;max-width:360px;
+  clip-path:polygon(10px 0%,100% 0%,100% calc(100% - 10px),calc(100% - 10px) 100%,0% 100%,0% 10px);}
+.ks-btn:active{background:rgba(200,168,75,.35);box-shadow:0 0 18px rgba(200,168,75,.5);}
+.ks-edit{font-family:'Orbitron',monospace;font-size:.5rem;letter-spacing:.14em;
+  color:var(--dim);background:none;border:1px solid var(--dim);
+  padding:6px 16px;cursor:pointer;margin-top:2px;}
+
 </style>
 </head>
 <body>
@@ -222,6 +255,28 @@ body{font-family:'Rajdhani',sans-serif;color:var(--text);display:flex;flex-direc
 <div class="hc bl"></div><div class="hc br"></div>
 <div id="notif"></div>
 
+<!-- ВВОД КЛЮЧЕЙ -->
+<div id="keysetup">
+  <div class="ks-logo">SINGULA</div>
+  <div class="ks-sub">STARK INDUSTRIES // АВТОРИЗАЦИЯ</div>
+
+  <div class="ks-row">
+    <div class="ks-lbl">GROK API KEY (xAI)</div>
+    <input class="ks-inp" id="k-grok" type="password" placeholder="gsk_...">
+  </div>
+  <div class="ks-row">
+    <div class="ks-lbl">ELEVENLABS API KEY (ГОЛОС)</div>
+    <input class="ks-inp" id="k-el" type="password" placeholder="sk_...">
+  </div>
+  <div class="ks-row">
+    <div class="ks-lbl">DEEPSEEK API KEY (запасной AI)</div>
+    <input class="ks-inp" id="k-ds" type="password" placeholder="sk-...">
+  </div>
+
+  <div class="ks-note">Ключи хранятся только на твоём устройстве. Никуда не отправляются.</div>
+  <button class="ks-btn" onclick="saveKeys()">▶ ЗАПУСТИТЬ SINGULA</button>
+</div>
+
 <!-- ГОЛОСОВАЯ КОМАНДА ОВЕРЛЕЙ -->
 <div id="vcmd">
   <div class="vc-ring"><div class="vc-core"></div></div>
@@ -230,7 +285,7 @@ body{font-family:'Rajdhani',sans-serif;color:var(--text);display:flex;flex-direc
   <button class="vc-cancel" onclick="cancelVoiceCmd()">✕ ОТМЕНА</button>
 </div>
 
-<div id="shell">
+<div id="shell" style="display:none;">
 
   <div class="topbar">
     <div class="logo">SINGULA</div>
@@ -301,17 +356,17 @@ body{font-family:'Rajdhani',sans-serif;color:var(--text);display:flex;flex-direc
   <div class="btm">
     <span>STARK IND © 2026</span>
     <span id="clk">--:--:--</span>
-    <span>SINGULA // CLASSIFIED</span>
+    <button onclick="openKeys()" style="background:none;border:none;color:var(--gold-d);font-family:'Orbitron',monospace;font-size:.46rem;letter-spacing:.1em;cursor:pointer;">⚙ КЛЮЧИ</button>
   </div>
 
 </div>
 
 <script>
 // ═══ API KEYS ═══
-const GEMINI_KEY  = 'AIzaSyBQL0K9e1WcdZSNmxedWdA1pNLchwN3M7c';
-const DEEPSEEK_KEY= 'sk-53fb526dd9b342849308e4cba847404f';
-const ELEVEN_KEY  = 'sk_f9e84ed757a7c5821422ccaed324b65d0047748c78501e02';
-const ELEVEN_VOICE= 'pNInz6obpgDQGcFmaJgB'; // Adam - deep male voice
+const GROK_KEY    = localStorage.getItem('sng_grok')||'';
+const DEEPSEEK_KEY= localStorage.getItem('sng_deepseek')||'';
+const ELEVEN_KEY  = localStorage.getItem('sng_eleven')||'';
+const ELEVEN_VOICE= 'pNInz6obpgDQGcFmaJgB';
 
 // ═══ РЕЖИМ AI ═══
 // Gemini = анализирует запрос + решает нужны ли действия на телефоне
@@ -371,19 +426,23 @@ function addMsg(role,text){
   cw.appendChild(d);cw.scrollTop=cw.scrollHeight;
 }
 
-// ── GEMINI: анализирует запрос, ищет ACTION-теги ──
-async function callGemini(txt){
-  const contents=[];
-  hist.forEach(m=>contents.push({role:m.r==='ai'?'model':'user',parts:[{text:m.t}]}));
-  contents.push({role:'user',parts:[{text:txt}]});
-  const analysisSys=SYS+`\n\nДОПОЛНИТЕЛЬНО: Если запрос требует действия на телефоне (открыть приложение, позвонить, написать сообщение, скачать что-то) — добавь в конец ответа тег [ACTION:действие]. Пример: [ACTION:открыть_telegram]. Если действий не нужно — просто отвечай.`;
-  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({systemInstruction:{parts:[{text:analysisSys}]},contents,generationConfig:{maxOutputTokens:300,temperature:.7}})
+// ── GROK: основной AI ──
+async function callGrok(txt){
+  const messages=[
+    {role:'system',content:SYS},
+    ...hist.map(m=>({role:m.r==='ai'?'assistant':'user',content:m.t})),
+    {role:'user',content:txt}
+  ];
+  const res=await fetch('https://api.x.ai/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+GROK_KEY_VAL},
+    body:JSON.stringify({model:'grok-3-mini',messages,max_tokens:500,temperature:.82})
   });
   const d=await res.json();
-  if(d.error)throw new Error('Gemini: '+d.error.message);
-  return d.candidates?.[0]?.content?.parts?.[0]?.text||'';
+  if(d.error)throw new Error('Grok: '+(d.error.message||JSON.stringify(d.error)));
+  const reply=d.choices?.[0]?.message?.content||'Нет ответа.';
+  parseActions(reply);
+  return reply.replace(/\[ACTION:[^\]]+\]/g,'').trim();
 }
 
 // ── DEEPSEEK: генерирует финальный красивый ответ ──
@@ -431,13 +490,13 @@ function parseActions(text){
 
 let currentAudio=null;
 async function speak(text){
-  if(!ELEVEN_KEY||!text)return;
+  if(!ELEVEN_KEY_VAL||!text)return;
   if(currentAudio){currentAudio.pause();currentAudio=null;}
   const mic=document.getElementById('mic');
   try{
     const res=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE}`,{
       method:'POST',
-      headers:{'Content-Type':'application/json','xi-api-key':ELEVEN_KEY},
+      headers:{'Content-Type':'application/json','xi-api-key':ELEVEN_KEY_VAL},
       body:JSON.stringify({text:text.substring(0,500),model_id:'eleven_multilingual_v2',
         voice_settings:{stability:.52,similarity_boost:.78,style:.32,use_speaker_boost:true}})
     });
@@ -460,7 +519,7 @@ async function send(text){
   cw.scrollTop=cw.scrollHeight;
   document.getElementById('sbtn').disabled=true;
   try{
-    let reply=await callGemini(txt);
+    let reply=await callGrok(txt);
     reply=reply.replace(/\[ACTION:[^\]]+\]/g,'').trim();
     document.getElementById('typing').style.display='none';
     addMsg('ai',reply);
@@ -600,14 +659,55 @@ function startWakeWord(){
   try{wakeRecog.start();}catch(e){}
 }
 
-// ═══ СТАРТ ═══
-setTimeout(()=>{
-  notif('SINGULA ИНИЦИАЛИЗИРОВАНА');
-  addMsg('ai','Все системы в норме, сэр. Дуговой реактор 97%. Броня Mark XLVII на боевом дежурстве. Скажите "Сингула" чтобы отдать голосовую команду.');
-  hist.push({r:'ai',t:'Все системы в норме, сэр. Дуговой реактор 97%. Броня Mark XLVII на боевом дежурстве.'});
-  speak('Все системы в норме, сэр. Готова к работе.');
-  setTimeout(startWakeWord,2000);
-},800);
+// ═══ КЛЮЧИ ═══
+let GROK_KEY_VAL='',ELEVEN_KEY_VAL='',DEEPSEEK_KEY_VAL='';
+
+function saveKeys(){
+  const g=document.getElementById('k-grok').value.trim();
+  const e=document.getElementById('k-el').value.trim();
+  const d=document.getElementById('k-ds').value.trim();
+  if(!g){notif('ВВЕДИ GROK КЛЮЧ!');return;}
+  localStorage.setItem('sng_grok',g);
+  if(e)localStorage.setItem('sng_eleven',e);
+  if(d)localStorage.setItem('sng_deepseek',d);
+  GROK_KEY_VAL=g;ELEVEN_KEY_VAL=e;DEEPSEEK_KEY_VAL=d;
+  document.getElementById('keysetup').classList.add('hidden');
+  document.getElementById('shell').style.display='flex';
+  setTimeout(()=>{
+    notif('SINGULA АКТИВИРОВАНА');
+    addMsg('ai','Все системы в норме, сэр. Дуговой реактор 97%. Броня Mark XLVII на боевом дежурстве. Нажмите кнопку и говорите.');
+    speak('Все системы в норме, сэр. Готова к работе.');
+    setTimeout(startWakeWord,2000);
+  },600);
+}
+
+function openKeys(){
+  const g=localStorage.getItem('sng_grok')||'';
+  const e=localStorage.getItem('sng_eleven')||'';
+  const d=localStorage.getItem('sng_deepseek')||'';
+  document.getElementById('k-grok').value=g;
+  document.getElementById('k-el').value=e;
+  document.getElementById('k-ds').value=d;
+  document.getElementById('keysetup').classList.remove('hidden');
+}
+
+// Автозагрузка ключей при старте
+(function(){
+  const g=localStorage.getItem('sng_grok')||'';
+  const e=localStorage.getItem('sng_eleven')||'';
+  const d=localStorage.getItem('sng_deepseek')||'';
+  if(g){
+    GROK_KEY_VAL=g;ELEVEN_KEY_VAL=e;DEEPSEEK_KEY_VAL=d;
+    document.getElementById('keysetup').classList.add('hidden');
+    document.getElementById('shell').style.display='flex';
+    setTimeout(()=>{
+      notif('SINGULA АКТИВИРОВАНА');
+      addMsg('ai','Все системы в норме, сэр. Дуговой реактор 97%. Броня Mark XLVII на боевом дежурстве. Нажмите кнопку и говорите.');
+      speak('Все системы в норме, сэр. Готова к работе.');
+      setTimeout(startWakeWord,2000);
+    },800);
+  }
+})();
 </script>
 </body>
 </html>
