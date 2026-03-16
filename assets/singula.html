@@ -434,7 +434,7 @@ async function send(text){
   cw.scrollTop=cw.scrollHeight;
   document.getElementById('sbtn').disabled=true;
   try{
-    let reply=await callDualAI(txt);
+    let reply=await callGemini(txt);
     reply=reply.replace(/\[ACTION:[^\]]+\]/g,'').trim();
     document.getElementById('typing').style.display='none';
     addMsg('ai',reply);
