@@ -261,20 +261,13 @@ body{font-family:'Rajdhani',sans-serif;color:var(--text);display:flex;flex-direc
   <div class="ks-sub">STARK INDUSTRIES // АВТОРИЗАЦИЯ</div>
 
   <div class="ks-row">
-    <div class="ks-lbl">GEMINI API KEY (Google AI)</div>
-    <input class="ks-inp" id="k-grok" type="password" placeholder="AIza...">
-  </div>
-  <div class="ks-row">
-    <div class="ks-lbl">ELEVENLABS API KEY (ГОЛОС)</div>
-    <input class="ks-inp" id="k-el" type="password" placeholder="sk_...">
-  </div>
-  <div class="ks-row">
-    <div class="ks-lbl">DEEPSEEK API KEY (запасной AI)</div>
-    <input class="ks-inp" id="k-ds" type="password" placeholder="sk-...">
+    <div class="ks-lbl">ELEVENLABS API KEY (ГОЛОС — необязательно)</div>
+    <input class="ks-inp" id="k-el" type="password" placeholder="sk_... (если хочешь голос)">
   </div>
 
-  <div class="ks-note">Ключи хранятся только на твоём устройстве. Никуда не отправляются.</div>
+  <div class="ks-note">AI работает без ключей! ElevenLabs только для голоса SINGULA.</div>
   <button class="ks-btn" onclick="saveKeys()">▶ ЗАПУСТИТЬ SINGULA</button>
+  <button onclick="saveKeys()" style="background:none;border:none;color:var(--dim);font-family:'Orbitron',monospace;font-size:.52rem;letter-spacing:.15em;cursor:pointer;padding:8px;">Запустить без голоса →</button>
 </div>
 
 <!-- ГОЛОСОВАЯ КОМАНДА ОВЕРЛЕЙ -->
@@ -426,23 +419,25 @@ function addMsg(role,text){
   cw.appendChild(d);cw.scrollTop=cw.scrollHeight;
 }
 
-// ── GEMINI: основной AI ──
+// ── CLAUDE: основной AI (встроенный, без ключа) ──
 async function callGrok(txt){
-  const contents=[];
-  hist.forEach(m=>contents.push({role:m.r==='ai'?'model':'user',parts:[{text:m.t}]}));
-  contents.push({role:'user',parts:[{text:txt}]});
-  const sys=SYS+`\n\nЕсли нужно действие на телефоне — добавь [ACTION:действие] в конце.`;
-  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GROK_KEY_VAL}`,{
-    method:'POST',headers:{'Content-Type':'application/json'},
+  const messages=[
+    ...hist.map(m=>({role:m.r==='ai'?'assistant':'user',content:m.t})),
+    {role:'user',content:txt}
+  ];
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
     body:JSON.stringify({
-      systemInstruction:{parts:[{text:sys}]},
-      contents,
-      generationConfig:{maxOutputTokens:500,temperature:.82}
+      model:'claude-sonnet-4-20250514',
+      max_tokens:1000,
+      system:SYS,
+      messages
     })
   });
   const d=await res.json();
-  if(d.error)throw new Error('Gemini: '+d.error.message);
-  const reply=d.candidates?.[0]?.content?.parts?.[0]?.text||'Нет ответа.';
+  if(d.error)throw new Error('AI: '+d.error.message);
+  const reply=d.content?.[0]?.text||'Нет ответа.';
   parseActions(reply);
   return reply.replace(/\[ACTION:[^\]]+\]/g,'').trim();
 }
@@ -665,14 +660,9 @@ function startWakeWord(){
 let GROK_KEY_VAL='',ELEVEN_KEY_VAL='',DEEPSEEK_KEY_VAL='';
 
 function saveKeys(){
-  const g=document.getElementById('k-grok').value.trim();
-  const e=document.getElementById('k-el').value.trim();
-  const d=document.getElementById('k-ds').value.trim();
-  if(!g){notif('ВВЕДИ GROK КЛЮЧ!');return;}
-  localStorage.setItem('sng_grok',g);
+  const e=document.getElementById('k-el')?document.getElementById('k-el').value.trim():'';
   if(e)localStorage.setItem('sng_eleven',e);
-  if(d)localStorage.setItem('sng_deepseek',d);
-  GROK_KEY_VAL=g;ELEVEN_KEY_VAL=e;DEEPSEEK_KEY_VAL=d;
+  ELEVEN_KEY_VAL=e||localStorage.getItem('sng_eleven')||'';
   document.getElementById('keysetup').classList.add('hidden');
   document.getElementById('shell').style.display='flex';
   setTimeout(()=>{
@@ -693,13 +683,13 @@ function openKeys(){
   document.getElementById('keysetup').classList.remove('hidden');
 }
 
-// Автозагрузка ключей при старте
+// Автозагрузка — запускается сразу без ключей
 (function(){
-  const g=localStorage.getItem('sng_grok')||'';
   const e=localStorage.getItem('sng_eleven')||'';
-  const d=localStorage.getItem('sng_deepseek')||'';
-  if(g){
-    GROK_KEY_VAL=g;ELEVEN_KEY_VAL=e;DEEPSEEK_KEY_VAL=d;
+  ELEVEN_KEY_VAL=e;
+  // Показываем экран ключей только если никогда не запускали
+  const launched=localStorage.getItem('sng_launched');
+  if(launched){
     document.getElementById('keysetup').classList.add('hidden');
     document.getElementById('shell').style.display='flex';
     setTimeout(()=>{
@@ -709,6 +699,7 @@ function openKeys(){
       setTimeout(startWakeWord,2000);
     },800);
   }
+  localStorage.setItem('sng_launched','1');
 })();
 </script>
 </body>
