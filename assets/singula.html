@@ -193,6 +193,25 @@ body{font-family:'Rajdhani',sans-serif;color:var(--text);display:flex;flex-direc
   flex-shrink:0;padding:0 2px;font-family:'Orbitron',monospace;
   font-size:.46rem;letter-spacing:.1em;color:var(--dim);}
 #clk{color:var(--gold-d);}
+
+/* BIG VOICE BUTTON */
+.vbig{
+  flex-shrink:0;width:100%;height:56px;
+  background:linear-gradient(135deg,rgba(74,176,255,.15),rgba(74,176,255,.04));
+  border:1.5px solid rgba(74,176,255,.45);color:var(--blue);
+  font-family:'Orbitron',monospace;font-size:.7rem;letter-spacing:.2em;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;
+  transition:all .2s;position:relative;overflow:hidden;
+}
+.vbig.rec{
+  background:rgba(255,68,34,.18);border-color:var(--red);color:var(--red);
+  box-shadow:0 0 25px rgba(255,68,34,.35);
+  animation:vbr .7s ease-in-out infinite;
+}
+@keyframes vbr{0%,100%{box-shadow:0 0 15px rgba(255,68,34,.3);}50%{box-shadow:0 0 35px rgba(255,68,34,.6);}}
+.vbig-dot{width:9px;height:9px;border-radius:50%;background:currentColor;flex-shrink:0;}
+.vbig.rec .vbig-dot{animation:vbd .6s ease-in-out infinite;}
+@keyframes vbd{0%,100%{transform:scale(1);}50%{transform:scale(1.8);}}
 </style>
 </head>
 <body>
@@ -261,9 +280,16 @@ body{font-family:'Rajdhani',sans-serif;color:var(--text);display:flex;flex-direc
       <button class="qb" onclick="qs('Кто ты такой?')">🤖 О себе</button>
       <button class="qb" onclick="qs('Улучши свой код')">🔄 Апдейт</button>
     </div>
+    <!-- БОЛЬШАЯ КНОПКА ГОЛОСА -->
+    <button class="vbig" id="vbig" onclick="toggleBigVoice()">
+      <div class="vbig-dot"></div>
+      <span id="vbig-txt">🎤 НАЖМИ И ГОВОРИ</span>
+    </button>
     <div class="inrow">
       <div class="inw">
-        <textarea id="ui" placeholder="Введите запрос или скажите 'Сингула'..." rows="1"></textarea>
+        <textarea id="ui" placeholder="Или введите текст..." rows="1"></textarea>
+        <button class="mic" id="mic" style="color:var(--dim);">⌨️</button>
+      </div>
         <button class="mic" id="mic" onclick="toggleVoice()">🎤</button>
       </div>
       <button class="sbtn" id="sbtn" onclick="send()">
@@ -351,7 +377,7 @@ async function callGemini(txt){
   hist.forEach(m=>contents.push({role:m.r==='ai'?'model':'user',parts:[{text:m.t}]}));
   contents.push({role:'user',parts:[{text:txt}]});
   const analysisSys=SYS+`\n\nДОПОЛНИТЕЛЬНО: Если запрос требует действия на телефоне (открыть приложение, позвонить, написать сообщение, скачать что-то) — добавь в конец ответа тег [ACTION:действие]. Пример: [ACTION:открыть_telegram]. Если действий не нужно — просто отвечай.`;
-  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,{
+  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,{
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({systemInstruction:{parts:[{text:analysisSys}]},contents,generationConfig:{maxOutputTokens:300,temperature:.7}})
   });
@@ -450,6 +476,41 @@ async function send(text){
 
 function qs(t){uiEl.value=t;send();}
 uiEl.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
+
+// ═══ БОЛЬШАЯ КНОПКА ГОЛОСА ═══
+let bigRec=null,bigRecActive=false;
+function toggleBigVoice(){
+  if(bigRecActive){stopBigVoice();return;}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){notif('ГОЛОС НЕ ПОДДЕРЖИВАЕТСЯ БРАУЗЕРОМ');return;}
+  bigRec=new SR();
+  bigRec.lang='ru-RU';
+  bigRec.continuous=false;
+  bigRec.interimResults=true;
+  bigRec.onstart=()=>{
+    bigRecActive=true;
+    document.getElementById('vbig').classList.add('rec');
+    document.getElementById('vbig-txt').textContent='🔴 СЛУШАЮ... ГОВОРИТЕ';
+  };
+  bigRec.onresult=e=>{
+    let txt='';
+    for(let i=0;i<e.results.length;i++) txt=e.results[i][0].transcript;
+    document.getElementById('vbig-txt').textContent='💬 '+txt;
+    if(e.results[e.results.length-1].isFinal){
+      stopBigVoice();
+      if(txt.trim()) send(txt.trim());
+    }
+  };
+  bigRec.onerror=()=>stopBigVoice();
+  bigRec.onend=()=>stopBigVoice();
+  bigRec.start();
+}
+function stopBigVoice(){
+  bigRecActive=false;
+  document.getElementById('vbig').classList.remove('rec');
+  document.getElementById('vbig-txt').textContent='🎤 НАЖМИ И ГОВОРИ';
+  if(bigRec){try{bigRec.stop();}catch(e){}bigRec=null;}
+}
 
 // ═══ ГОЛОСОВОЙ ВВОД (обычный чат) ═══
 let recog=null,isRec=false;
