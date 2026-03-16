@@ -261,8 +261,8 @@ body{font-family:'Rajdhani',sans-serif;color:var(--text);display:flex;flex-direc
   <div class="ks-sub">STARK INDUSTRIES // АВТОРИЗАЦИЯ</div>
 
   <div class="ks-row">
-    <div class="ks-lbl">GROK API KEY (xAI)</div>
-    <input class="ks-inp" id="k-grok" type="password" placeholder="gsk_...">
+    <div class="ks-lbl">GEMINI API KEY (Google AI)</div>
+    <input class="ks-inp" id="k-grok" type="password" placeholder="AIza...">
   </div>
   <div class="ks-row">
     <div class="ks-lbl">ELEVENLABS API KEY (ГОЛОС)</div>
@@ -426,21 +426,23 @@ function addMsg(role,text){
   cw.appendChild(d);cw.scrollTop=cw.scrollHeight;
 }
 
-// ── GROK: основной AI ──
+// ── GEMINI: основной AI ──
 async function callGrok(txt){
-  const messages=[
-    {role:'system',content:SYS},
-    ...hist.map(m=>({role:m.r==='ai'?'assistant':'user',content:m.t})),
-    {role:'user',content:txt}
-  ];
-  const res=await fetch('https://api.x.ai/v1/chat/completions',{
-    method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':'Bearer '+GROK_KEY_VAL},
-    body:JSON.stringify({model:'grok-3-mini',messages,max_tokens:500,temperature:.82})
+  const contents=[];
+  hist.forEach(m=>contents.push({role:m.r==='ai'?'model':'user',parts:[{text:m.t}]}));
+  contents.push({role:'user',parts:[{text:txt}]});
+  const sys=SYS+`\n\nЕсли нужно действие на телефоне — добавь [ACTION:действие] в конце.`;
+  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GROK_KEY_VAL}`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      systemInstruction:{parts:[{text:sys}]},
+      contents,
+      generationConfig:{maxOutputTokens:500,temperature:.82}
+    })
   });
   const d=await res.json();
-  if(d.error)throw new Error('Grok: '+(d.error.message||JSON.stringify(d.error)));
-  const reply=d.choices?.[0]?.message?.content||'Нет ответа.';
+  if(d.error)throw new Error('Gemini: '+d.error.message);
+  const reply=d.candidates?.[0]?.content?.parts?.[0]?.text||'Нет ответа.';
   parseActions(reply);
   return reply.replace(/\[ACTION:[^\]]+\]/g,'').trim();
 }
