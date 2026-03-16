@@ -64,140 +64,298 @@ class _SingulaScreenState extends State<SingulaScreen> {
       ..loadFlutterAsset('assets/singula.html');
   }
 
-  // Карта приложений
-  static const Map<String, String> _packages = {
-    'telegram': 'org.telegram.messenger',
-    'whatsapp': 'com.whatsapp',
-    'youtube': 'com.google.android.youtube',
-    'ютуб': 'com.google.android.youtube',
-    'instagram': 'com.instagram.android',
-    'tiktok': 'com.zhiliaoapp.musically',
-    'тикток': 'com.zhiliaoapp.musically',
-    'vk': 'com.vkontakte.android',
-    'вк': 'com.vkontakte.android',
-    'вконтакте': 'com.vkontakte.android',
-    'discord': 'com.discord',
-    'spotify': 'com.spotify.music',
-    'netflix': 'com.netflix.mediaclient',
-    'zoom': 'us.zoom.videomeetings',
-    'gmail': 'com.google.android.gm',
-    'maps': 'com.google.android.apps.maps',
-    'карты': 'com.google.android.apps.maps',
-    'camera': 'com.android.camera2',
-    'камера': 'com.android.camera2',
-    'calculator': 'com.android.calculator2',
-    'калькулятор': 'com.android.calculator2',
-    'calendar': 'com.google.android.calendar',
-    'календарь': 'com.google.android.calendar',
-    'clock': 'com.google.android.deskclock',
-    'часы': 'com.google.android.deskclock',
-    'settings': 'com.android.settings',
-    'настройки': 'com.android.settings',
-    'play market': 'com.android.vending',
-    'плей маркет': 'com.android.vending',
-    'магазин': 'com.android.vending',
-    'файлы': 'com.google.android.documentsui',
-    'контакты': 'com.google.android.contacts',
-    'twitter': 'com.twitter.android',
-    'snapchat': 'com.snapchat.android',
-    'facebook': 'com.facebook.katana',
-  };
+  // Извлечь текст после ключевых слов
+  String _extract(String cmd, List<String> keywords) {
+    String result = cmd;
+    for (final k in keywords) {
+      result = result.replaceAll(k, '');
+    }
+    return result
+        .replaceAll(RegExp(r'открой|открыть|запусти|включи|включить|выполняй|сингула|напиши|найди|поищи|покажи|поставь|воспроизведи'), '')
+        .trim();
+  }
 
-  Future<void> _handleCommand(String command) async {
-    final cmd = command.toLowerCase().trim();
+  Future<void> _handleCommand(String raw) async {
+    final cmd = raw.toLowerCase().trim();
     String result = 'Выполнено';
 
     try {
-      // ЗВОНОК
-      if (cmd.contains('позвони') || cmd.startsWith('call')) {
+      // ══ ЗВОНОК ══
+      if (cmd.contains('позвони') || cmd.contains('звони') || cmd.contains('набери')) {
         final number = cmd.replaceAll(RegExp(r'[^0-9+]'), '');
         if (number.isNotEmpty) {
-          await launchUrl(Uri.parse('tel:$number'),
-              mode: LaunchMode.externalApplication);
+          await _open('tel:$number');
           result = 'Звоню: $number';
+        } else {
+          await _open('tel:');
+          result = 'Открываю телефон';
         }
       }
-      // СМС
-      else if (cmd.contains('смс') || cmd.contains('напиши сообщение')) {
-        await launchUrl(Uri.parse('sms:'),
-            mode: LaunchMode.externalApplication);
-        result = 'Открываю сообщения';
+
+      // ══ WHATSAPP ══
+      else if (cmd.contains('whatsapp') || cmd.contains('вотсап') || cmd.contains('ватсап')) {
+        final number = cmd.replaceAll(RegExp(r'[^0-9+]'), '');
+        final text = _extract(cmd, ['whatsapp', 'вотсап', 'ватсап', 'напиши', 'отправь']);
+        if (number.isNotEmpty) {
+          final enc = Uri.encodeComponent(text);
+          await _open('https://wa.me/$number?text=$enc');
+        } else if (text.isNotEmpty) {
+          final enc = Uri.encodeComponent(text);
+          await _open('whatsapp://send?text=$enc');
+        } else {
+          await _open('whatsapp://');
+        }
+        result = 'Открываю WhatsApp';
       }
-      // YOUTUBE с поиском
-      else if (cmd.contains('youtube') || cmd.contains('ютуб')) {
-        String query = cmd
-            .replaceAll(RegExp(r'открой|включи|запусти|youtube|ютуб|выполняй'), '')
-            .trim();
+
+      // ══ TELEGRAM ══
+      else if (cmd.contains('telegram') || cmd.contains('телеграм') || cmd.contains('телегу')) {
+        final username = RegExp(r'@(\w+)').firstMatch(cmd)?.group(1);
+        final text = _extract(cmd, ['telegram', 'телеграм', 'телегу', 'напиши', 'открой']);
+        if (username != null) {
+          await _open('tg://resolve?domain=$username');
+          result = 'Открываю @$username в Telegram';
+        } else if (text.isNotEmpty && !text.contains('телеграм')) {
+          await _open('tg://msg?text=${Uri.encodeComponent(text)}');
+          result = 'Открываю Telegram';
+        } else {
+          await _open('tg://');
+        }
+        result = 'Открываю Telegram';
+      }
+
+      // ══ YOUTUBE ══
+      else if (cmd.contains('youtube') || cmd.contains('ютуб') || cmd.contains('ютьюб')) {
+        final query = _extract(cmd, ['youtube', 'ютуб', 'ютьюб']);
         if (query.isNotEmpty) {
           final enc = Uri.encodeComponent(query);
-          bool ok = await launchUrl(
-            Uri.parse('vnd.youtube://results?search_query=$enc'),
-            mode: LaunchMode.externalApplication,
-          );
-          if (!ok) {
-            await launchUrl(
-              Uri.parse('https://www.youtube.com/results?search_query=$enc'),
-              mode: LaunchMode.externalApplication,
-            );
-          }
-          result = 'Открываю YouTube: $query';
+          bool ok = await _open('vnd.youtube://results?search_query=$enc');
+          if (!ok) await _open('https://www.youtube.com/results?search_query=$enc');
+          result = 'Ищу на YouTube: $query';
         } else {
-          bool ok = await launchUrl(Uri.parse('vnd.youtube://'),
-              mode: LaunchMode.externalApplication);
-          if (!ok) {
-            await launchUrl(Uri.parse('https://youtube.com'),
-                mode: LaunchMode.externalApplication);
-          }
+          bool ok = await _open('vnd.youtube://');
+          if (!ok) await _open('https://youtube.com');
           result = 'Открываю YouTube';
         }
       }
-      // ПОИСК В ГУГЛ
-      else if (cmd.contains('найди') ||
-          cmd.contains('поищи') ||
-          cmd.contains('загугли') ||
-          cmd.contains('поиск')) {
-        String query = cmd
-            .replaceAll(RegExp(r'найди|поищи|загугли|поиск|выполняй'), '')
-            .trim();
-        final enc = Uri.encodeComponent(query);
-        await launchUrl(
-          Uri.parse('https://www.google.com/search?q=$enc'),
-          mode: LaunchMode.externalApplication,
-        );
-        result = 'Ищу: $query';
-      }
-      // ОТКРЫТЬ ПРИЛОЖЕНИЕ
-      else {
-        String? pkg;
-        String? name;
-        for (final e in _packages.entries) {
-          if (cmd.contains(e.key)) {
-            pkg = e.value;
-            name = e.key;
-            break;
-          }
-        }
-        if (pkg != null) {
-          bool ok = await launchUrl(
-            Uri.parse('android-app://$pkg'),
-            mode: LaunchMode.externalApplication,
-          );
-          if (!ok) {
-            // Не установлено — в Play Market
-            await launchUrl(
-              Uri.parse('https://play.google.com/store/apps/details?id=$pkg'),
-              mode: LaunchMode.externalApplication,
-            );
-            result = 'Приложение не найдено, открываю Play Market';
-          } else {
-            result = 'Открываю $name';
-          }
+
+      // ══ SPOTIFY ══
+      else if (cmd.contains('spotify') || cmd.contains('спотифай')) {
+        final query = _extract(cmd, ['spotify', 'спотифай']);
+        if (query.isNotEmpty) {
+          final enc = Uri.encodeComponent(query);
+          bool ok = await _open('spotify:search:$query');
+          if (!ok) await _open('https://open.spotify.com/search/$enc');
+          result = 'Ищу в Spotify: $query';
         } else {
-          HapticFeedback.mediumImpact();
+          await _open('spotify://');
+          result = 'Открываю Spotify';
         }
       }
+
+      // ══ ЗВУК КЛАУД / SOUNDCLOUD ══
+      else if (cmd.contains('soundcloud') || cmd.contains('саунд клауд') || cmd.contains('soundcloud') || cmd.contains('саундклауд')) {
+        final query = _extract(cmd, ['soundcloud', 'саунд клауд', 'саундклауд']);
+        if (query.isNotEmpty) {
+          final enc = Uri.encodeComponent(query);
+          await _open('https://soundcloud.com/search?q=$enc');
+          result = 'Ищу в SoundCloud: $query';
+        } else {
+          await _open('https://soundcloud.com');
+          result = 'Открываю SoundCloud';
+        }
+      }
+
+      // ══ INSTAGRAM ══
+      else if (cmd.contains('instagram') || cmd.contains('инстаграм') || cmd.contains('инста')) {
+        final username = RegExp(r'@(\w+)').firstMatch(cmd)?.group(1);
+        if (username != null) {
+          bool ok = await _open('instagram://user?username=$username');
+          if (!ok) await _open('https://instagram.com/$username');
+          result = 'Открываю @$username в Instagram';
+        } else {
+          await _open('instagram://');
+          result = 'Открываю Instagram';
+        }
+      }
+
+      // ══ TIKTOK ══
+      else if (cmd.contains('tiktok') || cmd.contains('тикток')) {
+        final query = _extract(cmd, ['tiktok', 'тикток']);
+        if (query.isNotEmpty) {
+          await _open('https://www.tiktok.com/search?q=${Uri.encodeComponent(query)}');
+          result = 'Ищу в TikTok: $query';
+        } else {
+          await _open('snssdk1233://');
+          result = 'Открываю TikTok';
+        }
+      }
+
+      // ══ VK ══
+      else if (cmd.contains('вконтакте') || cmd.contains('вк') || cmd.contains('vk')) {
+        final query = _extract(cmd, ['вконтакте', 'вк', 'vk']);
+        if (query.isNotEmpty) {
+          await _open('https://vk.com/search?c[q]=${Uri.encodeComponent(query)}');
+        } else {
+          bool ok = await _open('vk://');
+          if (!ok) await _open('https://vk.com');
+        }
+        result = 'Открываю ВКонтакте';
+      }
+
+      // ══ GOOGLE MAPS ══
+      else if (cmd.contains('карты') || cmd.contains('maps') || cmd.contains('маршрут') || cmd.contains('навигация')) {
+        final dest = _extract(cmd, ['карты', 'maps', 'маршрут', 'навигация', 'проложи', 'до', 'едем']);
+        if (dest.isNotEmpty) {
+          final enc = Uri.encodeComponent(dest);
+          bool ok = await _open('geo:0,0?q=$enc');
+          if (!ok) await _open('https://maps.google.com/?q=$enc');
+          result = 'Прокладываю маршрут до $dest';
+        } else {
+          await _open('geo:0,0');
+          result = 'Открываю Карты';
+        }
+      }
+
+      // ══ GMAIL ══
+      else if (cmd.contains('gmail') || cmd.contains('почта') || cmd.contains('email')) {
+        final query = _extract(cmd, ['gmail', 'почта', 'email', 'напиши']);
+        if (query.isNotEmpty) {
+          await _open('mailto:?body=${Uri.encodeComponent(query)}');
+        } else {
+          bool ok = await _open('googlegmail://');
+          if (!ok) await _open('https://gmail.com');
+        }
+        result = 'Открываю Gmail';
+      }
+
+      // ══ КАМЕРА ══
+      else if (cmd.contains('камера') || cmd.contains('camera') || cmd.contains('сними') || cmd.contains('сфотографируй')) {
+        await _open('android.media.action.IMAGE_CAPTURE');
+        result = 'Открываю камеру';
+      }
+
+      // ══ НАСТРОЙКИ ══
+      else if (cmd.contains('настройки') || cmd.contains('settings') || cmd.contains('wifi') || cmd.contains('вайфай') || cmd.contains('вай-фай')) {
+        if (cmd.contains('wifi') || cmd.contains('вайфай') || cmd.contains('вай-фай')) {
+          await _open('android.settings.WIFI_SETTINGS');
+        } else if (cmd.contains('bluetooth') || cmd.contains('блютуз')) {
+          await _open('android.settings.BLUETOOTH_SETTINGS');
+        } else {
+          await _open('android.settings.SETTINGS');
+        }
+        result = 'Открываю настройки';
+      }
+
+      // ══ БУДИЛЬНИК ══
+      else if (cmd.contains('будильник') || cmd.contains('alarm') || cmd.contains('разбуди')) {
+        final time = RegExp(r'(\d{1,2})[:\.](\d{2})').firstMatch(cmd);
+        if (time != null) {
+          final h = int.parse(time.group(1)!);
+          final m = int.parse(time.group(2)!);
+          await _open('android.intent.action.SET_ALARM?android.intent.extra.alarm.HOUR=$h&android.intent.extra.alarm.MINUTES=$m');
+          result = 'Ставлю будильник на ${time.group(0)}';
+        } else {
+          await _open('android.intent.action.SHOW_ALARMS');
+          result = 'Открываю будильник';
+        }
+      }
+
+      // ══ ТАЙМЕР ══
+      else if (cmd.contains('таймер') || cmd.contains('timer')) {
+        final mins = RegExp(r'(\d+)\s*(мин|минут|минуту)').firstMatch(cmd)?.group(1);
+        final secs = RegExp(r'(\d+)\s*(сек|секунд)').firstMatch(cmd)?.group(1);
+        if (mins != null) {
+          await _open('android.intent.action.SET_TIMER?android.intent.extra.alarm.LENGTH=${int.parse(mins) * 60}');
+          result = 'Ставлю таймер на $mins минут';
+        } else if (secs != null) {
+          await _open('android.intent.action.SET_TIMER?android.intent.extra.alarm.LENGTH=$secs');
+          result = 'Ставлю таймер на $secs секунд';
+        } else {
+          await _open('android.intent.action.SHOW_TIMERS');
+          result = 'Открываю таймер';
+        }
+      }
+
+      // ══ КАЛЬКУЛЯТОР ══
+      else if (cmd.contains('калькулятор') || cmd.contains('calculator')) {
+        bool ok = await _open('android-app://com.google.android.calculator');
+        if (!ok) await _open('android-app://com.android.calculator2');
+        result = 'Открываю калькулятор';
+      }
+
+      // ══ ПОИСК В ИНТЕРНЕТЕ ══
+      else if (cmd.contains('найди') || cmd.contains('поищи') || cmd.contains('загугли') || cmd.contains('погода')) {
+        final query = _extract(cmd, ['найди', 'поищи', 'загугли']);
+        final enc = Uri.encodeComponent(query.isEmpty ? cmd : query);
+        await _open('https://www.google.com/search?q=$enc');
+        result = 'Ищу: ${query.isEmpty ? cmd : query}';
+      }
+
+      // ══ NETFLIX ══
+      else if (cmd.contains('netflix') || cmd.contains('нетфликс')) {
+        final query = _extract(cmd, ['netflix', 'нетфликс']);
+        if (query.isNotEmpty) {
+          await _open('nflx://www.netflix.com/search?q=${Uri.encodeComponent(query)}');
+        } else {
+          bool ok = await _open('nflx://www.netflix.com/');
+          if (!ok) await _open('https://netflix.com');
+        }
+        result = 'Открываю Netflix';
+      }
+
+      // ══ DISCORD ══
+      else if (cmd.contains('discord') || cmd.contains('дискорд')) {
+        await _open('discord://');
+        result = 'Открываю Discord';
+      }
+
+      // ══ ZOOM ══
+      else if (cmd.contains('zoom') || cmd.contains('зум')) {
+        await _open('zoomus://zoom.us/join');
+        result = 'Открываю Zoom';
+      }
+
+      // ══ SMS ══
+      else if (cmd.contains('смс') || cmd.contains('сообщение') && !cmd.contains('telegram') && !cmd.contains('whatsapp')) {
+        final text = _extract(cmd, ['смс', 'сообщение', 'напиши', 'отправь']);
+        if (text.isNotEmpty) {
+          await _open('sms:?body=${Uri.encodeComponent(text)}');
+        } else {
+          await _open('sms:');
+        }
+        result = 'Открываю сообщения';
+      }
+
+      // ══ PLAY MARKET ══
+      else if (cmd.contains('play market') || cmd.contains('плей маркет') || cmd.contains('магазин приложений')) {
+        final query = _extract(cmd, ['play market', 'плей маркет', 'магазин приложений', 'скачай', 'установи']);
+        if (query.isNotEmpty) {
+          await _open('market://search?q=${Uri.encodeComponent(query)}');
+        } else {
+          await _open('market://');
+        }
+        result = 'Открываю Play Market';
+      }
+
+      // ══ БРАУЗЕР / САЙТ ══
+      else if (cmd.contains('открой сайт') || cmd.contains('зайди на') || cmd.contains('http') || cmd.contains('.com') || cmd.contains('.ru')) {
+        String url = cmd
+            .replaceAll(RegExp(r'открой сайт|зайди на|открой'), '')
+            .trim();
+        if (!url.startsWith('http')) url = 'https://$url';
+        await _open(url);
+        result = 'Открываю $url';
+      }
+
+      // ══ НЕИЗВЕСТНАЯ КОМАНДА — ищем в Play Market ══
+      else {
+        HapticFeedback.mediumImpact();
+        result = 'Команда получена';
+      }
+
     } catch (e) {
-      result = 'Ошибка запуска';
+      result = 'Не удалось выполнить';
     }
 
     HapticFeedback.lightImpact();
@@ -205,6 +363,17 @@ class _SingulaScreenState extends State<SingulaScreen> {
     _controller.runJavaScript(
       "if(window.onFlutterResponse) window.onFlutterResponse('$safe')",
     );
+  }
+
+  Future<bool> _open(String url) async {
+    try {
+      return await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -231,8 +400,7 @@ class _SingulaScreenState extends State<SingulaScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      const SizedBox(
-                        width: 40, height: 40,
+                      const SizedBox(width: 40, height: 40,
                         child: CircularProgressIndicator(
                           color: Color(0xFF4AB0FF), strokeWidth: 2,
                         ),
