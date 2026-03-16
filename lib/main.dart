@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,17 +46,7 @@ class _SingulaScreenState extends State<SingulaScreen> {
   @override
   void initState() {
     super.initState();
-    _requestPermissions();
     _initWebView();
-  }
-
-  Future<void> _requestPermissions() async {
-    await [
-      Permission.microphone,
-      Permission.camera,
-      Permission.storage,
-      Permission.phone,
-    ].request();
   }
 
   void _initWebView() {
@@ -67,7 +56,6 @@ class _SingulaScreenState extends State<SingulaScreen> {
       ..setNavigationDelegate(NavigationDelegate(
         onPageFinished: (_) => setState(() => _isLoading = false),
       ))
-      // ── CHANNEL: Flutter получает команды от JS ──
       ..addJavaScriptChannel(
         'FlutterBridge',
         onMessageReceived: (msg) => _handleCommand(msg.message),
@@ -75,59 +63,45 @@ class _SingulaScreenState extends State<SingulaScreen> {
       ..loadFlutterAsset('assets/singula.html');
   }
 
-  // ── ОБРАБОТЧИК КОМАНД ──
   Future<void> _handleCommand(String command) async {
     final cmd = command.toLowerCase().trim();
 
-    // ОТКРЫТЬ ПРИЛОЖЕНИЯ
     if (cmd.contains('telegram')) {
-      _launchApp('tg://');
+      _launch('tg://');
     } else if (cmd.contains('whatsapp')) {
-      _launchApp('whatsapp://');
+      _launch('whatsapp://');
     } else if (cmd.contains('youtube')) {
-      _launchApp('https://youtube.com');
+      _launch('https://youtube.com');
     } else if (cmd.contains('instagram')) {
-      _launchApp('instagram://');
+      _launch('instagram://');
     } else if (cmd.contains('play market') || cmd.contains('плей маркет')) {
-      _launchApp('market://');
-    } else if (cmd.contains('браузер') || cmd.contains('browser')) {
-      _launchApp('https://google.com');
+      _launch('market://');
+    } else if (cmd.contains('браузер') || cmd.contains('browser') || cmd.contains('гугл') || cmd.contains('google')) {
+      _launch('https://google.com');
     } else if (cmd.contains('настройки') || cmd.contains('settings')) {
-      _launchApp('android-app://com.android.settings');
-    }
-    // ЗВОНОК
-    else if (cmd.startsWith('позвони') || cmd.startsWith('позвонить')) {
+      _launch('android-app://com.android.settings');
+    } else if (cmd.startsWith('позвони') || cmd.startsWith('call')) {
       final number = cmd.replaceAll(RegExp(r'[^0-9+]'), '');
-      if (number.isNotEmpty) _launchApp('tel:$number');
-    }
-    // SMS
-    else if (cmd.startsWith('сообщение') || cmd.startsWith('смс')) {
-      _launchApp('sms:');
-    }
-    // СКАЧАТЬ APK
-    else if (cmd.contains('скачай') || cmd.contains('установи')) {
-      final urlMatch = RegExp(r'https?://\S+').firstMatch(command);
-      if (urlMatch != null) _launchApp(urlMatch.group(0)!);
-    }
-    // ВИБРАЦИЯ (подтверждение команды)
-    else {
+      if (number.isNotEmpty) _launch('tel:$number');
+    } else if (cmd.contains('сообщение') || cmd.contains('смс')) {
+      _launch('sms:');
+    } else {
       HapticFeedback.mediumImpact();
     }
 
-    // Отправить подтверждение обратно в JS
     _controller.runJavaScript(
-      "if(window.onFlutterResponse) window.onFlutterResponse('Команда выполнена: $command')"
+      "if(window.onFlutterResponse) window.onFlutterResponse('Выполнено: $command')"
     );
   }
 
-  Future<void> _launchApp(String url) async {
+  Future<void> _launch(String url) async {
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      _controller.runJavaScript(
-        "if(window.onFlutterResponse) window.onFlutterResponse('Не удалось открыть: $url')"
-      );
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      debugPrint('Launch error: $e');
     }
   }
 
@@ -157,8 +131,7 @@ class _SingulaScreenState extends State<SingulaScreen> {
                       ),
                       const SizedBox(height: 24),
                       const SizedBox(
-                        width: 40,
-                        height: 40,
+                        width: 40, height: 40,
                         child: CircularProgressIndicator(
                           color: Color(0xFF4AB0FF),
                           strokeWidth: 2,
