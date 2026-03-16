@@ -54,10 +54,7 @@ class _SingulaScreenState extends State<SingulaScreen> {
       ..setBackgroundColor(const Color(0xFF020810))
       ..setNavigationDelegate(NavigationDelegate(
         onPageFinished: (_) => setState(() => _isLoading = false),
-        navigationDelegate: (request) {
-          // Allow all navigation inside WebView
-          return NavigationDecision.navigate;
-        },
+        onNavigationRequest: (request) => NavigationDecision.navigate,
       ))
       ..addJavaScriptChannel(
         'FlutterBridge',
