@@ -432,7 +432,7 @@ async function callGrok(txt){
   hist.forEach(m=>contents.push({role:m.r==='ai'?'model':'user',parts:[{text:m.t}]}));
   contents.push({role:'user',parts:[{text:txt}]});
   const sys=SYS+`\n\nЕсли нужно действие на телефоне — добавь [ACTION:действие] в конце.`;
-  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GROK_KEY_VAL}`,{
+  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GROK_KEY_VAL}`,{
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({
       systemInstruction:{parts:[{text:sys}]},
