@@ -430,22 +430,18 @@ async function callGrok(txt){
     throw new Error('Введи Gemini ключ!');
   }
   const contents=[];
-  // Системный промпт в первом сообщении
-  if(hist.length===0){
-    contents.push({role:'user',parts:[{text:SYS+'\n\nПонял, готов к работе.'}]});
-    contents.push({role:'model',parts:[{text:'Понял, сэр. Готов к работе.'}]});
-  }
   hist.forEach(m=>contents.push({
     role:m.r==='ai'?'model':'user',
     parts:[{text:m.t}]
   }));
   contents.push({role:'user',parts:[{text:txt}]});
   const res=await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${key}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
     {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
+        systemInstruction:{parts:[{text:SYS}]},
         contents,
         generationConfig:{maxOutputTokens:500,temperature:.82}
       })
